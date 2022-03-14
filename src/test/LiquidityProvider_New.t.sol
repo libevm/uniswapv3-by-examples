@@ -5,8 +5,7 @@ pragma abicoder v2;
 import "ds-test/test.sol";
 
 import "../lib/Address.sol";
-
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../lib/MockToken.sol";
 
 import "@uniswap-solidity-lib/contracts/libraries/FixedPoint.sol";
 import "@uniswap-v3-core/contracts/libraries/TickMath.sol";
@@ -17,7 +16,7 @@ import "@uniswap-v3-periphery/contracts/interfaces/INonfungiblePositionManager.s
 import "@uniswap-v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap-v3-periphery/contracts/interfaces/external/IWETH9.sol";
 
-contract AddLiquidityTest is DSTest {
+contract LiquidityProvider_NewTest is DSTest {
     using FixedPoint for FixedPoint.uq112x112;
     using FixedPoint for FixedPoint.uq144x112;
 
@@ -29,50 +28,61 @@ contract AddLiquidityTest is DSTest {
     IUniswapV3Factory v3Factory = IUniswapV3Factory(Address.UNIV3_FACTORY);
     IUniswapV3Pool pool;
 
-    IWETH9 weth = IWETH9(Address.WETH);
-    IERC20 dai = IERC20(Address.DAI);
-
-    IERC20 token0 = IERC20(Address.WETH < Address.DAI ? Address.WETH : Address.DAI);
-    IERC20 token1 = IERC20(Address.WETH > Address.DAI ? Address.WETH : Address.DAI);
+    MockToken token0;
+    MockToken token1;
 
     uint24 constant fee = 3000;
     int24 tickSpacing;
 
     function setUp() public {
-        // Get pool
+        token0 = new MockToken();
+        token1 = new MockToken();
+
+        if (address(token0) > address(token1)) {
+            address temp = address(token0);
+            token0 = token1;
+            token1 = MockToken(temp);
+        }
+
+        // Creates the new pool
         pool = IUniswapV3Pool(
-            v3Factory.getPool(Address.WETH, Address.DAI, fee)
+            v3Factory.createPool(address(token0), address(token1), fee)
         );
+
+        /*
+            Calculates the initial price (in sqrtPriceX96 format)
+
+            https://docs.uniswap.org/sdk/guides/fetching-prices
+
+            sqrtPriceX96 = sqrt(price) * 2 ** 96
+        */
+
+        // Lets set the price to be 1000 token0 = 1 token1
+        uint160 sqrtPriceX96 = FixedPoint
+            .fraction(1, 1000)
+            .sqrt()
+            .mul(2**96)
+            .decode144();
+        pool.initialize(sqrtPriceX96);
+
         tickSpacing = pool.tickSpacing();
-
-        // Give us some WETH
-        weth.deposit{value: 20e18}();
-
-        // Get us some DAI from Univ3
-        weth.approve(address(v3router), uint256(-1));
-        v3router.exactInput(
-            ISwapRouter.ExactInputParams({
-                path: abi.encodePacked(Address.WETH, fee, Address.DAI),
-                recipient: address(this),
-                deadline: block.timestamp,
-                amountIn: 10e18,
-                amountOutMinimum: 0
-            })
-        );
     }
 
     /// @notice Adds liquidity at current spot price -/+ tickSpacing
-    function test_addLiquidity() public {
-        // Approve NF Position Manager
-        weth.approve(address(nfpm), uint256(-1));
-        dai.approve(address(nfpm), uint256(-1));
-
-        // Get pool current tick, make sure the ticks are correct
-        (, int24 curTick,,,,,) = pool.slot0();
+    function test_addLiquidity_new() public {
+        // Get tick spacing
+        (, int24 curTick, , , , , ) = pool.slot0();
         curTick = curTick - (curTick % tickSpacing);
 
         int24 lowerTick = curTick - (tickSpacing * 2);
         int24 upperTick = curTick + (tickSpacing * 2);
+
+        // We know that we need ~ 1 token0 for every 1000 token1
+        token0.mint(address(this), 1000e18);
+        token0.approve(address(nfpm), uint256(-1));
+
+        token1.mint(address(this), 1e18);
+        token1.approve(address(nfpm), uint256(-1));
 
         nfpm.mint(
             INonfungiblePositionManager.MintParams({
@@ -81,13 +91,16 @@ contract AddLiquidityTest is DSTest {
                 fee: fee,
                 tickLower: lowerTick,
                 tickUpper: upperTick,
-                amount0Desired: token0.balanceOf(address(this)),
-                amount1Desired: token1.balanceOf(address(this)),
+                amount0Desired: 1000e18,
+                amount1Desired: 1e18,
                 amount0Min: 0e18,
                 amount1Min: 0e18,
                 recipient: address(this),
                 deadline: block.timestamp
             })
         );
+
+        assertEq(token0.balanceOf(address(this)), 0);
+        assertLt(token1.balanceOf(address(this)), 1e18);
     }
 }

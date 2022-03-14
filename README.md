@@ -14,8 +14,8 @@ forge test -f $RPC_URL -vvv
 
 ## Examples 
 
-- [] Calculate SqrtPriceX96/SqrtRatioX96
+- [x] Calculate SqrtPriceX96/SqrtRatioX96
 - [x] Add Liquidity
-- [] Remove Liquidity
+- [x] Remove Liquidity
 - [x] Swap Exact In
-- [] Swap Exact Out
+- [x] Swap Exact Out
