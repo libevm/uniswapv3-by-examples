@@ -1,0 +1,15 @@
+[default]
+src = 'src'
+out = 'out'
+libs = ['lib']
+solc = '0.7.6'
+
+remappings = [
+    'ds-test/=lib/ds-test/src/',
+    '@uniswap-v3-core/=lib/v3-core/',
+    '@uniswap-solidity-lib/=lib/solidity-lib/',
+    '@uniswap-v3-periphery/=lib/v3-periphery/',
+    '@openzeppelin/=lib/openzeppelin-contracts/contracts/',
+]
+
+# See more config options https://github.com/gakonst/foundry/tree/master/config
