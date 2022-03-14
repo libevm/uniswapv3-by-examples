@@ -10,6 +10,9 @@ forge build
 
 # RPC_URL=https://mainnet.infura.io/v3/<PROJECT_ID>
 forge test -f $RPC_URL -vvv
+
+# ganache-cli -f $RPC_URL
+forge run --debug src/test/Swap.t.sol -f http://127.0.0.1:8545 --sig "test_swapExactInput()"
 ```
 
 ## Examples 
