@@ -7,7 +7,8 @@ import "ds-test/test.sol";
 import "../lib/Address.sol";
 import "../lib/MockToken.sol";
 
-import "@uniswap-solidity-lib/contracts/libraries/FixedPoint.sol";
+import "../lib/SqrtMath.sol";
+
 import "@uniswap-v3-core/contracts/libraries/TickMath.sol";
 
 import "@uniswap-v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -17,9 +18,6 @@ import "@uniswap-v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap-v3-periphery/contracts/interfaces/external/IWETH9.sol";
 
 contract LiquidityProvider_NewTest is DSTest {
-    using FixedPoint for FixedPoint.uq112x112;
-    using FixedPoint for FixedPoint.uq144x112;
-
     using TickMath for int24;
 
     INonfungiblePositionManager nfpm =
@@ -58,11 +56,7 @@ contract LiquidityProvider_NewTest is DSTest {
         */
 
         // Lets set the price to be 1000 token0 = 1 token1
-        uint160 sqrtPriceX96 = FixedPoint
-            .fraction(1, 1000)
-            .sqrt()
-            .mul(2**96)
-            .decode144();
+        uint160 sqrtPriceX96 = encodePriceSqrt(1, 1000);
         pool.initialize(sqrtPriceX96);
 
         tickSpacing = pool.tickSpacing();
