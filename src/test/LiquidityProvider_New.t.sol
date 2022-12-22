@@ -71,7 +71,7 @@ contract LiquidityProvider_NewTest is DSTest {
         int24 lowerTick = curTick - (tickSpacing * 2);
         int24 upperTick = curTick + (tickSpacing * 2);
 
-        // We know that we need ~ 1 token0 for every 1000 token1
+        // We know that we need ~ 1 token1 for every 1000 token0
         token0.mint(address(this), 1000e18);
         token0.approve(address(nfpm), uint256(-1));
 
